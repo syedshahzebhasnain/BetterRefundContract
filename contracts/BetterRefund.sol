@@ -20,12 +20,17 @@ contract RefundContract is Ownable {
     uint256 public endRefundTimestamp;
     bool public allRefundsAvailable = false;
 
+    // Constant for the minimum claim percentage
+    uint256 public constant MIN_CLAIM_PERCENTAGE = 50;
+
     string public adminEmail;
 
     event RefundSetEvent(address indexed user, uint256 amount);
     event RefundExecutedEvent(address indexed user, uint256 amount);
     event EndRefundsTimestampSet(uint256 endRefundTimestamp);
     event AllRefundsAvailable(bool allRefundsAvailable);
+
+
 
 
     /**
@@ -99,13 +104,26 @@ contract RefundContract is Ownable {
     /**
      * @dev Function to execute a final transfer back to the owner of unclaimed refunds.
      */
-    function executeRefund() external onlyOwner {
+    function executeRefundContractClosure() external onlyOwner {
         require(block.timestamp <= endRefundTimestamp, "Refunds are no longer available");
+
+        uint256 totalRefunds = 0;
+        uint256 claimedRefunds = 0;
+
+        for (uint256 i = 0; i < refundAddresses.length; i++) {
+            totalRefunds += refunds[refundAddresses[i]];
+            if (token.balanceOf(refundAddresses[i]) > 0) {
+                claimedRefunds += refunds[refundAddresses[i]];
+            }
+        }
+
+        uint256 claimPercentage = (claimedRefunds * 100) / totalRefunds;
+        require(claimPercentage >= MIN_CLAIM_PERCENTAGE, "Claim percentage is less than minimum claim percentage");
 
         uint256 amount = token.balanceOf(address(this));
         require(token.transfer(owner(), amount), "Token transfer failed");
 
-        emit RefundExecutedEvent(owner(), amount);
+        emit RefundExecutedEvent(owner(), amount); 
     }
 
     /**

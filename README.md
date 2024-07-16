@@ -1,8 +1,19 @@
-# Sample Hardhat Project
+# Better Refund Contract
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+Trying to make the refunds better. 
+Solidity Contract for EVM chains
 
-Try running some of the following tasks:
+
+## Core Functionality
+
+1- Supports refund of ERC20 Tokens
+2- Allows defining per user token allocation in bulk
+3- Blocks RugPull 
+ a- Cannot change the end time of the contract lock to time already defined in the contract
+ b- Admin cannot get refund back if 50% or more of the refunds have not been claimed
+ c- Email is to be provided at the time of deployment
+
+# Running the code
 
 ```shell
 npx hardhat help
