@@ -17,9 +17,6 @@ THIS CONTRACT IS NOT AUDITED. PROVIDED AS IS. USE AT YOUR OWN RISK.
 To interact with and test the contract, use the following commands:
 
 ```shell
-# Display help information
-npx hardhat help
-
 # Run tests
 npx hardhat test
 
