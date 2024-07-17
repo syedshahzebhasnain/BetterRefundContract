@@ -10,6 +10,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "hardhat/console.sol";
 
 contract RefundContract is Ownable {
     IERC20 public token;
@@ -21,7 +22,7 @@ contract RefundContract is Ownable {
     bool public allRefundsAvailable = false;
 
     // Constant for the minimum claim percentage
-    uint256 public constant MIN_CLAIM_PERCENTAGE = 50;
+    uint256 public constant MIN_CLAIM_RATIO = 0.5 * 1e18;
 
     string public adminEmail;
 
@@ -29,9 +30,6 @@ contract RefundContract is Ownable {
     event RefundExecutedEvent(address indexed user, uint256 amount);
     event EndRefundsTimestampSet(uint256 endRefundTimestamp);
     event AllRefundsAvailable(bool allRefundsAvailable);
-
-
-
 
     /**
      * @dev Constructor to initialize the contract with token address, end refund timestamp, and admin email.
@@ -76,7 +74,7 @@ contract RefundContract is Ownable {
      */
     function setEndRefundTime(uint256 _customTime) external onlyOwner {
         // Set the last refund time. This blocks rug pulls
-        require(_customTime > endRefundTimestamp, "Last refund time can only be increased");
+        require(_customTime > endRefundTimestamp, "End refund time can only be increased");
         endRefundTimestamp = _customTime;
         emit EndRefundsTimestampSet(endRefundTimestamp);
     }
@@ -94,9 +92,9 @@ contract RefundContract is Ownable {
      */
     function withdrawRefund() external {
         uint256 amount = refunds[msg.sender];
-        require(amount > 0, "Nice try, but you don't have any refunds");
-
+        require(amount > 0, "No refund or already withdrawn");
         require(token.transfer(msg.sender, amount), "Token transfer failed");
+        refunds[msg.sender] = 0;
 
         emit RefundExecutedEvent(msg.sender, amount);
     }
@@ -105,20 +103,18 @@ contract RefundContract is Ownable {
      * @dev Function to execute a final transfer back to the owner of unclaimed refunds.
      */
     function executeRefundContractClosure() external onlyOwner {
-        require(block.timestamp <= endRefundTimestamp, "Refunds are no longer available");
+        require(block.timestamp >= endRefundTimestamp, "Wait for end refund time");
 
-        uint256 totalRefunds = 0;
-        uint256 claimedRefunds = 0;
+        uint256 totalRefundsCount = refundAddresses.length;
+        uint256 claimedRefundsCount = 0;
 
         for (uint256 i = 0; i < refundAddresses.length; i++) {
-            totalRefunds += refunds[refundAddresses[i]];
-            if (token.balanceOf(refundAddresses[i]) > 0) {
-                claimedRefunds += refunds[refundAddresses[i]];
+            if (refunds[refundAddresses[i]] > 0) {
+                claimedRefundsCount++;
             }
         }
-
-        uint256 claimPercentage = (claimedRefunds * 100) / totalRefunds;
-        require(claimPercentage >= MIN_CLAIM_PERCENTAGE, "Claim percentage is less than minimum claim percentage");
+        uint256 claimRatio = claimedRefundsCount * 1e18 / totalRefundsCount;
+        require(claimRatio >= MIN_CLAIM_RATIO, "Claim percentage is less than minimum claim percentage");
 
         uint256 amount = token.balanceOf(address(this));
         require(token.transfer(owner(), amount), "Token transfer failed");
