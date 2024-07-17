@@ -13,6 +13,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
 contract RefundContract is Ownable {
+    // Constant for the minimum claim percentage
+    uint256 public constant MIN_CLAIM_RATIO = 0.5 * 1e18;
     IERC20 public token;
     
     mapping(address => uint256) public refunds;
@@ -21,16 +23,13 @@ contract RefundContract is Ownable {
     uint256 public endRefundTimestamp;
     bool public allRefundsAvailable = false;
 
-    // Constant for the minimum claim percentage
-    uint256 public constant MIN_CLAIM_RATIO = 0.5 * 1e18;
-
     string public adminEmail;
 
     event RefundSetEvent(address indexed user, uint256 amount);
     event RefundExecutedEvent(address indexed user, uint256 amount);
     event EndRefundsTimestampSet(uint256 endRefundTimestamp);
     event AllRefundsAvailable(bool allRefundsAvailable);
-
+    
     /**
      * @dev Constructor to initialize the contract with token address, end refund timestamp, and admin email.
      * @param _tokenAddress Address of the ERC20 token contract.
@@ -93,9 +92,10 @@ contract RefundContract is Ownable {
     function withdrawRefund() external {
         uint256 amount = refunds[msg.sender];
         require(amount > 0, "No refund or already withdrawn");
-        require(token.transfer(msg.sender, amount), "Token transfer failed");
+        // to prevent re-entrancy attacks
         refunds[msg.sender] = 0;
 
+        require(token.transfer(msg.sender, amount), "Token transfer failed");
         emit RefundExecutedEvent(msg.sender, amount);
     }
 
